@@ -1,1 +1,1 @@
-com.microsoft.azure.sqldb.spark.sql.streaming.SQLSinkProvider
+com.microsoft.azure.sqldb.spark.streaming.SQLSinkProvider
