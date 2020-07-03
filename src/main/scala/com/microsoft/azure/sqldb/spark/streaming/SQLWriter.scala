@@ -22,7 +22,7 @@
  */
 package com.microsoft.azure.sqldb.spark.streaming
 
-import java.sql._
+import java.sql.{Connection, Date, SQLException, Timestamp}
 
 import com.microsoft.azure.sqldb.spark.config.{Config, SqlDBConfig}
 import org.apache.spark.internal.Logging
@@ -32,7 +32,6 @@ import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import com.microsoft.azure.sqldb.spark.connect.ConnectionUtils._
 import com.microsoft.azure.sqldb.spark.connect._
-
 import org.apache.spark.sql.catalyst.expressions._
 
 import scala.Array
@@ -93,7 +92,6 @@ private[spark] object SQLWriter extends Logging {
         sql = "INSERT INTO [" + table + "] (" + colNames.substring(0, colNames.length - 1) + ")" + " VALUES (" + values.substring(0, values.length - 1) + ");"
       }
 
-
       queryExecution.toRdd.foreachPartition(iter => {
         streamToDB(iter, sql, schemaDatatype, accessorsArr)
       })
@@ -117,27 +115,27 @@ private[spark] object SQLWriter extends Logging {
                 ): Unit = {
 
     val ps = connection.prepareStatement(sql)
-    iter.foreach(row => {
-      if(ps != null) {
+    iter foreach (row => {
+      if (ps != null) {
         var rowData = ""
-        try{
-          var i = 0   //Start Here: Check if there are other ways of representing timestamp
-          for(accessor <- accessorsArr) {
-            var data = accessor(row, i)
+        try {
+          var i = 0 //Start Here: Check if there are other ways of representing timestamp
+          for (accessor <- accessorsArr) {
+            val data = accessor(row, i)
             schemaDatatypes(i) match {
-              case BooleanType => ps.setBoolean(i+1, data.asInstanceOf[Boolean])
-              case ByteType => ps.setByte(i+1, data.asInstanceOf[Byte])
-              case ShortType => ps.setShort(i+1, data.asInstanceOf[Short])
-              case IntegerType => ps.setInt(i+1, data.asInstanceOf[Int])
-              case DateType => ps.setDate(i+1, new Date((data.asInstanceOf[Int] + 1)*daysToMillis)) //Adding 1 as the accessor does not count the number of days inclusively
-              case LongType => ps.setLong(i+1, data.asInstanceOf[Long])
-              case TimestampType => ps.setTimestamp(i+1, new Timestamp(data.asInstanceOf[Long]/1000L))
-              case FloatType => ps.setFloat(i+1, data.asInstanceOf[Float])
-              case DoubleType => ps.setDouble(i+1, data.asInstanceOf[Double])
-              case StringType => ps.setString(i+1, data.toString)
-              case t: DecimalType => ps.setBigDecimal(i+1, data.asInstanceOf[Decimal].toJavaBigDecimal)
-              case BinaryType => ps.setBytes(i+1, data.asInstanceOf[Array[Byte]])
-              case _ => ps.setString(i+1, String.valueOf(data))
+              case BooleanType => ps.setBoolean(i + 1, data.asInstanceOf[Boolean])
+              case ByteType => ps.setByte(i + 1, data.asInstanceOf[Byte])
+              case ShortType => ps.setShort(i + 1, data.asInstanceOf[Short])
+              case IntegerType => ps.setInt(i + 1, data.asInstanceOf[Int])
+              case DateType => ps.setDate(i + 1, new Date((data.asInstanceOf[Int] + 1) * daysToMillis)) //Adding 1 as the accessor does not count the number of days inclusively
+              case LongType => ps.setLong(i + 1, data.asInstanceOf[Long])
+              case TimestampType => ps.setTimestamp(i + 1, new Timestamp(data.asInstanceOf[Long] / 1000L))
+              case FloatType => ps.setFloat(i + 1, data.asInstanceOf[Float])
+              case DoubleType => ps.setDouble(i + 1, data.asInstanceOf[Double])
+              case StringType => ps.setString(i + 1, data.toString)
+              case t: DecimalType => ps.setBigDecimal(i + 1, data.asInstanceOf[Decimal].toJavaBigDecimal)
+              case BinaryType => ps.setBytes(i + 1, data.asInstanceOf[Array[Byte]])
+              case _ => ps.setString(i + 1, String.valueOf(data))
             }
             rowData += String.valueOf(data) + " "
             i += 1
@@ -145,8 +143,8 @@ private[spark] object SQLWriter extends Logging {
           ps.execute()
         } catch {
           case e: SQLException => {
-            var err = e.toString
-            if(err.toLowerCase().contains("invalid object name")) {   //Handling 'table not found' error
+            val err = e.toString
+            if (err.toLowerCase().contains("invalid object name")) { //Handling 'table not found' error
               throw new Exception(err)
             } else {
               log.error("Error inserting row into table. Skipping thw row. Row Data contains: " + rowData)
